@@ -328,41 +328,14 @@ select:focus-visible{ border-color: var(--burgundy); }
   border: 1px solid var(--line);
 }
 
-.book-card__top{
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding-left: 22px;
-  gap: 10px;
-}
-
-.book-card__dewey{
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--burgundy);
-  background: rgba(124,46,42,0.08);
-  border: 1px solid rgba(124,46,42,0.18);
-  border-radius: 2px;
-  padding: 2px 7px;
-  white-space: nowrap;
-  letter-spacing: 0.02em;
-}
-
-.book-card__year{
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--ink-soft);
-  flex-shrink: 0;
-}
-
 .book-card__title{
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 17px;
-  line-height: 1.32;
+  font-size: 19px;
+  line-height: 1.3;
   color: var(--ink);
   padding-left: 22px;
-  margin: 0;
+  margin: 2px 0 0;
 }
 
 .book-card__author{
@@ -398,8 +371,8 @@ select:focus-visible{ border-color: var(--burgundy); }
   color: var(--green);
 }
 
-.book-card__editore{
-  font-family: var(--font-ui);
+.book-card__year{
+  font-family: var(--font-mono);
   font-size: 12px;
   color: var(--ink-soft);
 }
@@ -444,6 +417,52 @@ mark{
 
 .load-more:hover{ background: var(--green-deep); }
 .load-more:active{ transform: translateY(1px); }
+
+/* ================= VETRINA PER CATEGORIA ================= */
+
+.showcase{
+  margin-top: 72px;
+  padding-top: 48px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+}
+
+.showcase__head{
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.showcase__title{
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-style: italic;
+  font-size: clamp(1.6rem, 3vw, 2.1rem);
+  color: var(--green);
+  margin: 0;
+}
+
+.showcase__link{
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--burgundy);
+  background: none;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  padding: 4px 0;
+}
+
+.showcase__link:hover{ text-decoration: underline; }
+
+.grid--showcase{
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
 
 /* ================= FOOTER ================= */
 
