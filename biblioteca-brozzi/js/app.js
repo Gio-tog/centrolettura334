@@ -9,12 +9,15 @@ const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTaPJfoXysoBeqt
 
 const PAGE_SIZE = 30;
 
+const SHOWCASE_CATEGORIES = ["Narrativa", "Storia", "Scienza"];
+
 const state = {
   books: [],
   filtered: [],
   displayCount: PAGE_SIZE,
   fuse: null,
   query: "",
+  showcase: [],
 };
 
 const els = {
@@ -32,6 +35,7 @@ const els = {
   statAuthors: document.getElementById("statAuthors"),
   statGenres: document.getElementById("statGenres"),
   lastUpdated: document.getElementById("lastUpdated"),
+  showcase: document.getElementById("showcase"),
 };
 
 init();
@@ -46,6 +50,7 @@ function init() {
       buildFilters(state.books);
       buildFuse(state.books);
       updateStats(state.books);
+      state.showcase = buildShowcase(state.books);
       applyFilters();
       els.lastUpdated.textContent =
         "Ultimo aggiornamento: " +
@@ -78,7 +83,7 @@ function normalizeRows(rows) {
     .map((r) => ({
       dewey: (r["C. Dewey"] || "").trim(),
       inventario: (r["Inventario"] || "").trim(),
-      categoria: (r["Macro collocazione"] || "").trim(),
+      categoria: normalizeCategoria((r["Macro collocazione"] || "").trim()),
       collocazione: (r["Collocazione"] || "").trim(),
       autore: (r["Autore (nome e cognome)"] || "").trim(),
       titolo: (r["Titolo"] || "").trim(),
@@ -87,6 +92,14 @@ function normalizeRows(rows) {
       anno: parseAnno(r["Anno"]),
     }))
     .filter((b) => b.titolo); // scarta righe vuote/malformate
+}
+
+// Il registro ha qualche piccola incoerenza di battitura (es. "Scienza" / "Scienze"):
+// le uniformiamo per non avere categorie duplicate nei filtri e nelle vetrine.
+function normalizeCategoria(categoria) {
+  if (categoria.toLowerCase() === "scienze") return "Scienza";
+  if (categoria.toLowerCase() === "dizionario") return "Dizionari";
+  return categoria;
 }
 
 function parseAnno(raw) {
@@ -190,11 +203,66 @@ function sortItems(items, mode) {
   return copy;
 }
 
+/* ---------- Vetrina per categoria (Narrativa / Storia / Scienza) ---------- */
+
+function buildShowcase(books) {
+  return SHOWCASE_CATEGORIES.map((categoria) => {
+    const inCategoria = books.filter((b) => b.categoria === categoria);
+    return { categoria, sample: sampleRandom(inCategoria, 3) };
+  }).filter((group) => group.sample.length > 0);
+}
+
+function sampleRandom(arr, n) {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy.slice(0, n);
+}
+
+function renderShowcase(show) {
+  if (!show || state.showcase.length === 0) {
+    els.showcase.hidden = true;
+    els.showcase.innerHTML = "";
+    return;
+  }
+
+  els.showcase.hidden = false;
+  els.showcase.innerHTML = state.showcase
+    .map(
+      (group) => `
+      <div class="showcase__group">
+        <div class="showcase__head">
+          <h2 class="showcase__title">${escapeHtml(group.categoria)}</h2>
+          <button class="showcase__link" data-categoria="${escapeHtml(group.categoria)}">
+            Vedi tutti →
+          </button>
+        </div>
+        <div class="grid grid--showcase">
+          ${group.sample.map((book) => renderCard({ book, matches: null })).join("")}
+        </div>
+      </div>
+    `
+    )
+    .join("");
+
+  els.showcase.querySelectorAll(".showcase__link").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      els.filterCategoria.value = btn.dataset.categoria;
+      applyFilters();
+      document.getElementById("catalogo").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+}
+
 /* ---------- Render ---------- */
 
 function render() {
   const total = state.filtered.length;
   const visible = state.filtered.slice(0, state.displayCount);
+  const noFiltersActive =
+    els.searchInput.value.trim() === "" && els.filterCategoria.value === "" && els.filterGenere.value === "";
 
   els.grid.innerHTML = visible.map(renderCard).join("");
   els.emptyState.hidden = total !== 0;
@@ -206,6 +274,8 @@ function render() {
       : `<strong>${total.toLocaleString("it-IT")}</strong> ${total === 1 ? "libro trovato" : "libri trovati"}`;
 
   els.loadMoreWrap.hidden = state.displayCount >= total;
+
+  renderShowcase(noFiltersActive);
 }
 
 function renderCard({ book, matches }) {
@@ -215,16 +285,12 @@ function renderCard({ book, matches }) {
 
   return `
     <article class="book-card">
-      <div class="book-card__top">
-        ${book.dewey ? `<span class="book-card__dewey">${escapeHtml(book.dewey)}</span>` : "<span></span>"}
-        <span class="book-card__year">${book.anno || "s.d."}</span>
-      </div>
       <h3 class="book-card__title">${titolo}</h3>
       <p class="book-card__author">${autore}</p>
       <hr class="book-card__divider">
       <div class="book-card__meta">
         ${book.genere ? `<span class="chip">${escapeHtml(book.genere)}</span>` : ""}
-        ${book.editore ? `<span class="book-card__editore">${escapeHtml(book.editore)}</span>` : ""}
+        <span class="book-card__year">${book.anno || "anno non indicato"}</span>
       </div>
     </article>
   `;
