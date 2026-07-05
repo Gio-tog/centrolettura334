@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Centro Lettura "Insieme per Brozzi" — Catalogo Libri</title>
+<meta name="description" content="Catalogo online del Centro Lettura Insieme per Brozzi: cerca tra migliaia di libri per titolo, autore o genere.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Libre+Franklin:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero__ledger" aria-hidden="true"></div>
+  <div class="hero__inner">
+    <div class="hero__mark" aria-hidden="true">
+      <svg viewBox="0 0 64 64" width="52" height="52">
+        <path d="M8 12 C 8 9, 10 8, 13 8 L 30 8 L 30 54 L 13 54 C 10 54, 8 53, 8 51 Z" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path d="M56 12 C 56 9, 54 8, 51 8 L 34 8 L 34 54 L 51 54 C 54 54, 56 53, 56 51 Z" fill="none" stroke="currentColor" stroke-width="2"/>
+        <line x1="32" y1="8" x2="32" y2="54" stroke="currentColor" stroke-width="1.5"/>
+      </svg>
+    </div>
+
+    <p class="hero__eyebrow">Catalogo della biblioteca</p>
+    <h1 class="hero__title">Centro&nbsp;Lettura<br><em>"Insieme&nbsp;per&nbsp;Brozzi"</em></h1>
+    <p class="hero__tagline">Migliaia di libri, un solo posto dove cercarli.<br>Sfoglia il catalogo, cerca per titolo o autore, scopri cosa leggere.</p>
+
+    <div class="hero__stats" id="heroStats">
+      <div class="stat"><span class="stat__num" id="statBooks">—</span><span class="stat__label">volumi</span></div>
+      <div class="stat"><span class="stat__num" id="statAuthors">—</span><span class="stat__label">autori</span></div>
+      <div class="stat"><span class="stat__num" id="statGenres">—</span><span class="stat__label">generi</span></div>
+    </div>
+
+    <div class="hero__stamp" aria-hidden="true">
+      <span>Brozzi</span><span class="hero__stamp-sub">Firenze</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section id="catalogo" class="catalog">
+
+    <div class="toolbar" id="toolbar">
+      <div class="toolbar__search">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="searchInput" type="text" placeholder="Cerca per titolo, autore o genere…" autocomplete="off">
+        <button id="clearSearch" class="toolbar__clear" aria-label="Cancella ricerca" hidden>&times;</button>
+      </div>
+
+      <div class="toolbar__filters">
+        <select id="filterCategoria" aria-label="Filtra per categoria">
+          <option value="">Tutte le categorie</option>
+        </select>
+        <select id="filterGenere" aria-label="Filtra per genere">
+          <option value="">Tutti i generi</option>
+        </select>
+        <select id="sortBy" aria-label="Ordina risultati">
+          <option value="rilevanza">Più rilevanti</option>
+          <option value="titolo-asc">Titolo (A-Z)</option>
+          <option value="autore-asc">Autore (A-Z)</option>
+          <option value="anno-desc">Anno (più recenti)</option>
+          <option value="anno-asc">Anno (più vecchi)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="catalog__meta">
+      <p id="resultsCount" class="results-count">Caricamento del catalogo…</p>
+    </div>
+
+    <div id="grid" class="grid" aria-live="polite"></div>
+
+    <div id="emptyState" class="empty-state" hidden>
+      <p>Nessun libro trovato.</p>
+      <p class="empty-state__hint">Prova con un altro termine di ricerca o rimuovi i filtri.</p>
+    </div>
+
+    <div id="loadMoreWrap" class="load-more-wrap" hidden>
+      <button id="loadMore" class="load-more">Mostra altri libri</button>
+    </div>
+
+  </section>
+</main>
+
+<footer class="site-footer">
+  <p>Centro Lettura "Insieme per Brozzi" — Catalogo aggiornato automaticamente dal registro della biblioteca.</p>
+  <p class="site-footer__meta" id="lastUpdated"></p>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/7.0.0/fuse.min.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
