@@ -15,7 +15,6 @@ const state = {
   books: [],
   filtered: [],
   displayCount: PAGE_SIZE,
-  fuse: null,
   query: "",
   showcase: [],
 };
@@ -48,7 +47,6 @@ function init() {
     complete: (results) => {
       state.books = normalizeRows(results.data);
       buildFilters(state.books);
-      buildFuse(state.books);
       updateStats(state.books);
       state.showcase = buildShowcase(state.books);
       applyFilters();
@@ -128,21 +126,49 @@ function fillSelect(selectEl, values) {
   });
 }
 
-/* ---------- Ricerca (Fuse.js) ---------- */
+/* ---------- Ricerca a corrispondenza esatta ---------- */
+/* Cerca la sottostringa esattamente scritta (ignorando maiuscole/minuscole
+   e accenti), senza tolleranza per errori di battitura: niente risultati
+   "simili", solo libri che contengono davvero il termine cercato. */
 
-function buildFuse(books) {
-  state.fuse = new Fuse(books, {
-    keys: [
-      { name: "titolo", weight: 0.5 },
-      { name: "autore", weight: 0.35 },
-      { name: "genere", weight: 0.1 },
-      { name: "editore", weight: 0.05 },
-    ],
-    threshold: 0.32,
-    ignoreLocation: true,
-    includeMatches: true,
-    minMatchCharLength: 2,
-  });
+function normalize(str) {
+  return String(str)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+const FIELD_RANK = { titolo: 0, autore: 1, genere: 2, editore: 3 };
+
+function searchBooks(query) {
+  const nq = normalize(query.trim());
+  if (!nq) return [];
+
+  const results = [];
+  for (const book of state.books) {
+    const idxTitolo = normalize(book.titolo).indexOf(nq);
+    const idxAutore = normalize(book.autore).indexOf(nq);
+    const idxGenere = normalize(book.genere).indexOf(nq);
+    const idxEditore = normalize(book.editore).indexOf(nq);
+
+    let field = null;
+    let idx = -1;
+    if (idxTitolo !== -1) { field = "titolo"; idx = idxTitolo; }
+    else if (idxAutore !== -1) { field = "autore"; idx = idxAutore; }
+    else if (idxGenere !== -1) { field = "genere"; idx = idxGenere; }
+    else if (idxEditore !== -1) { field = "editore"; idx = idxEditore; }
+
+    if (field) results.push({ book, field, idx, queryLength: nq.length });
+  }
+
+  results.sort(
+    (a, b) =>
+      FIELD_RANK[a.field] - FIELD_RANK[b.field] ||
+      a.idx - b.idx ||
+      a.book.titolo.localeCompare(b.book.titolo, "it")
+  );
+
+  return results;
 }
 
 function onSearchInput() {
@@ -161,18 +187,18 @@ function applyFilters() {
   let items;
 
   if (query.length > 0) {
-    const results = state.fuse.search(query);
+    const results = searchBooks(query);
     items = results
       .filter(
         (r) =>
-          (!categoria || r.item.categoria === categoria) &&
-          (!genere || r.item.genere === genere)
+          (!categoria || r.book.categoria === categoria) &&
+          (!genere || r.book.genere === genere)
       )
-      .map((r) => ({ book: r.item, matches: r.matches }));
+      .map((r) => ({ book: r.book, match: r }));
   } else {
     items = state.books
       .filter((b) => (!categoria || b.categoria === categoria) && (!genere || b.genere === genere))
-      .map((b) => ({ book: b, matches: null }));
+      .map((b) => ({ book: b, match: null }));
   }
 
   if (!(query.length > 0 && sortMode === "rilevanza")) {
@@ -240,7 +266,7 @@ function renderShowcase(show) {
           </button>
         </div>
         <div class="grid grid--showcase">
-          ${group.sample.map((book) => renderCard({ book, matches: null })).join("")}
+          ${group.sample.map((book) => renderCard({ book, match: null })).join("")}
         </div>
       </div>
     `
@@ -278,8 +304,8 @@ function render() {
   renderShowcase(noFiltersActive);
 }
 
-function renderCard({ book, matches }) {
-  const highlights = buildHighlightMap(matches);
+function renderCard({ book, match }) {
+  const highlights = buildHighlightMap(match);
   const titolo = highlight(book.titolo, highlights.titolo);
   const autore = highlight(book.autore || "Autore non indicato", highlights.autore);
 
@@ -296,13 +322,11 @@ function renderCard({ book, matches }) {
   `;
 }
 
-function buildHighlightMap(matches) {
+function buildHighlightMap(match) {
   const map = { titolo: null, autore: null };
-  if (!matches) return map;
-  matches.forEach((m) => {
-    if (m.key === "titolo") map.titolo = m.indices;
-    if (m.key === "autore") map.autore = m.indices;
-  });
+  if (!match) return map;
+  if (match.field === "titolo") map.titolo = [[match.idx, match.idx + match.queryLength - 1]];
+  if (match.field === "autore") map.autore = [[match.idx, match.idx + match.queryLength - 1]];
   return map;
 }
 
