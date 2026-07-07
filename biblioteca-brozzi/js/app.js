@@ -1,86 +1,81 @@
-/* ==================*=========================
-   Centr* Lettura "Insieme per Brozzi" — Ca*alogo
-   Legge il catalogo diretta*ente dal Google Sheet
-   pubblicat* come CSV: si aggiorna da solo.
-  *==================================*========= */
-
-// URL del Google Sh*et pubblicato come CSV
-const CSV_U*L = "https://docs.google.com/sprea*sheets/d/e/2PACX-1vTaPJfoXysoBeqtu*T4frjSF1MpZYff2NAgaCmsyTUwItatKDGf*dBxjkDYx17_Xyqq1cTpnnkHpXqB/pub?gi*=689097874&single=true&output=csv"*
-
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTaPJfoXysoBeqtu4T4frjSF1MpZYff2NAgaCmsyTUwItatKDGfgdBxjkDYx17Xyqq1cTpnnkHpXqB/pub?gid=689097874&single=true&output=csv";
 const PAGE_SIZE = 30;
+const SHOWCASE_CATEGORIES = ["Narrativa", "Storia", "Scienza"];
 
-const SHO*CASE_CATEGORIES = ["Narrativa", "S*oria", "Scienza"];
-
-const state = *
+const state = {
   books: [],
   filtered: [],
-  di*playCount: PAGE_SIZE,
-  query: "",*  showcase: [],
+  displayCount: PAGE_SIZE,
+  showcase: [],
 };
 
 const els = {
-* searchInput: document.getElementB*Id("searchInput"),
-  clearSearch: *ocument.getElementById("clearSearc*"),
-  filterCategoria: document.ge*ElementById("filterCategoria"),
-  *ilterGenere: document.getElementBy*d("filterGenere"),
-  sortBy: docum*nt.getElementById("sortBy"),
-  gri*: document.getElementById("grid"),*  resultsCount: document.getElemen*ById("resultsCount"),
-  emptyState* document.getElementById("emptySta*e"),
-  loadMoreWrap: document.getE*ementById("loadMoreWrap"),
-  loadM*re: document.getElementById("loadM*re"),
-  statBooks: document.getEle*entById("statBooks"),
-  statAuthor*: document.getElementById("statAut*ors"),
-  statGenres: document.getE*ementById("statGenres"),
-  lastUpd*ted: document.getElementById("last*pdated"),
-  showcase: document.get*lementById("showcase"),
+  searchInput: document.getElementById("searchInput"),
+  clearSearch: document.getElementById("clearSearch"),
+  filterCategoria: document.getElementById("filterCategoria"),
+  filterGenere: document.getElementById("filterGenere"),
+  sortBy: document.getElementById("sortBy"),
+  grid: document.getElementById("grid"),
+  resultsCount: document.getElementById("resultsCount"),
+  emptyState: document.getElementById("emptyState"),
+  loadMoreWrap: document.getElementById("loadMoreWrap"),
+  loadMore: document.getElementById("loadMore"),
+  statBooks: document.getElementById("statBooks"),
+  statAuthors: document.getElementById("statAuthors"),
+  statGenres: document.getElementById("statGenres"),
+  lastUpdated: document.getElementById("lastUpdated"),
+  showcase: document.getElementById("showcase"),
 };
 
-init()*
+init();
 
 function init() {
-  Papa.parse(C*V_URL, {
+  Papa.parse(CSV_URL, {
     download: true,
-    h*ader: true,
-    skipEmptyLines: tr*e,
+    header: true,
+    skipEmptyLines: true,
     complete: (results) => {
-  *   state.books = normalizeRows(res*lts.data);
-      buildFilters(stat*.books);
-      updateStats(state.b*oks);
-      state.showcase = build*howcase(state.books);
-      applyF*lters();
-      els.lastUpdated.tex*Content =
-        "Ultimo aggiorna*ento: " +
-        new Date().toLoc*leDateString("it-IT", { day: "nume*ic", month: "long", year: "numeric* });
+      state.books = normalizeRows(results.data);
+      buildFilters(state.books);
+      updateStats(state.books);
+      state.showcase = buildShowcase(state.books);
+      applyFilters();
+      els.lastUpdated.textContent =
+        "Ultimo aggiornamento: " +
+        new Date().toLocaleDateString("it-IT", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        });
     },
     error: () => {
-   *  els.resultsCount.textContent = "*mpossibile caricare il catalogo al*momento. Riprova più tardi.";
-    *,
+      els.resultsCount.textContent =
+        "Impossibile caricare il catalogo al momento. Riprova più tardi.";
+    },
   });
 
-  els.searchInput.addEven*Listener("input", debounce(onSearc*Input, 180));
-  els.clearSearch.ad*EventListener("click", () => {
-   *els.searchInput.value = "";
-    on*earchInput();
-    els.searchInput.*ocus();
+  els.searchInput.addEventListener("input", debounce(onSearchInput, 180));
+  els.clearSearch.addEventListener("click", () => {
+    els.searchInput.value = "";
+    onSearchInput();
+    els.searchInput.focus();
   });
-
-  els.filterCategor*a.addEventListener("change", apply*ilters);
-  els.filterGenere.addEve*tListener("change", applyFilters);*  els.sortBy.addEventListener("cha*ge", applyFilters);
-
-  els.loadMor*.addEventListener("click", () => {*    state.displayCount += PAGE_SIZ*;
+  els.filterCategoria.addEventListener("change", applyFilters);
+  els.filterGenere.addEventListener("change", applyFilters);
+  els.sortBy.addEventListener("change", applyFilters);
+  els.loadMore.addEventListener("click", () => {
+    state.displayCount += PAGE_SIZE;
     render();
   });
 }
 
-/* ------*--- Normalizzazione dati ---------* */
-
-function normalizeRows(rows) *
+function normalizeRows(rows) {
   return rows
     .map((r) => ({
-*     dewey: (r["C. Dewey"] || "").*rim(),
-      inventario: (r["Inven*ario"] || "").trim(),
-      catego*ia: normalizeCategoria((r["Macro c*llocazione"] || "").trim()),
-     *collocazione: (r["Collocazione"] || "").trim(),
+      dewey: (r["C. Dewey"] || "").trim(),
+      inventario: (r["Inventario"] || "").trim(),
+      categoria: normalizeCategoria((r["Macro collocazione"] || "").trim()),
+      collocazione: (r["Collocazione"] || "").trim(),
       autore: (r["Autore (nome e cognome)"] || "").trim(),
       titolo: (r["Titolo"] || "").trim(),
       genere: (r["Genere"] || "").trim(),
@@ -91,8 +86,9 @@ function normalizeRows(rows) *
 }
 
 function normalizeCategoria(categoria) {
-  if (categoria.toLowerCase() === "scienze") return "Scienza";
-  if (categoria.toLowerCase() === "dizionario") return "Dizionari";
+  const c = String(categoria || "").trim().toLowerCase();
+  if (c === "scienze") return "Scienza";
+  if (c === "dizionario") return "Dizionari";
   return categoria;
 }
 
@@ -102,50 +98,25 @@ function parseAnno(raw) {
   return Number.isFinite(n) && n > 1400 && n < 2100 ? n : null;
 }
 
-/* ---------- Filtri dropdown dinamici ---------- */
-
 function buildFilters(books) {
-  fillSelect(els.filterCategoria, uniqueSorted(books.map((b) => b.categoria)), "Tutte le categorie");
-  fillSelect(els.filterGenere, uniqueSorted(books.map((b) => b.genere)), "Tutti i generi");
-}
-
-function updateAvailableFilters() {
-  const categoriaAttiva = els.filterCategoria.value;
-  const genereAttivo = els.filterGenere.value;
-
-  const libriPerCategoria = state.books.filter((b) => !genereAttivo || b.genere === genereAttivo);
-  const libriPerGenere = state.books.filter((b) => !categoriaAttiva || b.categoria === categoriaAttiva);
-
-  const categorieDisponibili = uniqueSorted(libriPerCategoria.map((b) => b.categoria));
-  const generiDisponibili = uniqueSorted(libriPerGenere.map((b) => b.genere));
-
-  fillSelect(els.filterCategoria, categorieDisponibili, "Tutte le categorie", categoriaAttiva);
-  fillSelect(els.filterGenere, generiDisponibili, "Tutti i generi", genereAttivo);
+  fillSelect(els.filterCategoria, uniqueSorted(books.map((b) => b.categoria)));
+  fillSelect(els.filterGenere, uniqueSorted(books.map((b) => b.genere)));
 }
 
 function uniqueSorted(values) {
-  return [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b, "it"));
+  return [...new Set(values.filter(Boolean))].sort((a, b) =>
+    a.localeCompare(b, "it")
+  );
 }
 
-function fillSelect(selectEl, values, defaultLabel, selectedValue = "") {
-  selectEl.innerHTML = "";
-
-  const first = document.createElement("option");
-  first.value = "";
-  first.textContent = defaultLabel;
-  selectEl.appendChild(first);
-
+function fillSelect(selectEl, values) {
   values.forEach((v) => {
     const opt = document.createElement("option");
     opt.value = v;
     opt.textContent = v;
     selectEl.appendChild(opt);
   });
-
-  selectEl.value = values.includes(selectedValue) ? selectedValue : "";
 }
-
-/* ---------- Ricerca a corrispondenza esatta ---------- */
 
 function normalize(str) {
   return String(str)
@@ -153,8 +124,6 @@ function normalize(str) {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
 }
-
-const FIELD_RANK = { titolo: 0, autore: 1, genere: 2, editore: 3 };
 
 function searchBooks(query) {
   const nq = normalize(query.trim());
@@ -198,16 +167,14 @@ function searchBooks(query) {
   return results;
 }
 
+const FIELD_RANK = { titolo: 0, autore: 1, genere: 2, editore: 3 };
+
 function onSearchInput() {
   els.clearSearch.hidden = els.searchInput.value.trim() === "";
   applyFilters();
 }
 
-/* ---------- Applicazione filtri + ordinamento ---------- */
-
 function applyFilters() {
-  updateAvailableFilters();
-
   const query = els.searchInput.value.trim();
   const categoria = els.filterCategoria.value;
   const genere = els.filterGenere.value;
@@ -217,7 +184,6 @@ function applyFilters() {
 
   if (query.length > 0) {
     const results = searchBooks(query);
-
     items = results
       .filter(
         (r) =>
@@ -246,29 +212,24 @@ function applyFilters() {
 
 function sortItems(items, mode) {
   const copy = [...items];
-
   switch (mode) {
     case "titolo-asc":
       copy.sort((a, b) => a.book.titolo.localeCompare(b.book.titolo, "it"));
       break;
-
     case "autore-asc":
-      copy.sort((a, b) => (a.book.autore || "").localeCompare(b.book.autore || "", "it"));
+      copy.sort((a, b) =>
+        (a.book.autore || "").localeCompare(b.book.autore || "", "it")
+      );
       break;
-
     case "anno-desc":
       copy.sort((a, b) => (b.book.anno || 0) - (a.book.anno || 0));
       break;
-
     case "anno-asc":
       copy.sort((a, b) => (a.book.anno || 9999) - (b.book.anno || 9999));
       break;
   }
-
   return copy;
 }
-
-/* ---------- Vetrina per categoria ---------- */
 
 function buildShowcase(books) {
   return SHOWCASE_CATEGORIES.map((categoria) => {
@@ -279,39 +240,36 @@ function buildShowcase(books) {
 
 function sampleRandom(arr, n) {
   const copy = [...arr];
-
   for (let i = copy.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [copy[i], copy[j]] = [copy[j], copy[i]];
   }
-
   return copy.slice(0, n);
 }
 
 function renderShowcase(show) {
-  if (!show || state.showcase.length === 0) {
+  if (!show || show.length === 0) {
     els.showcase.hidden = true;
     els.showcase.innerHTML = "";
     return;
   }
 
   els.showcase.hidden = false;
-
-  els.showcase.innerHTML = state.showcase
+  els.showcase.innerHTML = show
     .map(
       (group) => `
-      <div class="showcase__group">
-        <div class="showcase__head">
-          <h2 class="showcase__title">${escapeHtml(group.categoria)}</h2>
-          <button class="showcase__link" data-categoria="${escapeHtml(group.categoria)}">
-            Vedi tutti →
-          </button>
+        <div class="showcase__group">
+          <div class="showcase__head">
+            <h2 class="showcase__title">${escapeHtml(group.categoria)}</h2>
+            <button class="showcase__link" data-categoria="${escapeHtml(
+              group.categoria
+            )}">Vedi tutti →</button>
+          </div>
+          <div class="grid grid--showcase">
+            ${group.sample.map((book) => renderCard({ book, match: null })).join("")}
+          </div>
         </div>
-        <div class="grid grid--showcase">
-          ${group.sample.map((book) => renderCard({ book, match: null })).join("")}
-        </div>
-      </div>
-    `
+      `
     )
     .join("");
 
@@ -319,17 +277,17 @@ function renderShowcase(show) {
     btn.addEventListener("click", () => {
       els.filterCategoria.value = btn.dataset.categoria;
       applyFilters();
-      document.getElementById("catalogo").scrollIntoView({ behavior: "smooth", block: "start" });
+      document.getElementById("catalogo").scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
     });
   });
 }
 
-/* ---------- Render ---------- */
-
 function render() {
   const total = state.filtered.length;
   const visible = state.filtered.slice(0, state.displayCount);
-
   const noFiltersActive =
     els.searchInput.value.trim() === "" &&
     els.filterCategoria.value === "" &&
@@ -342,11 +300,12 @@ function render() {
   els.resultsCount.innerHTML =
     total === 0
       ? ""
-      : `<strong>${total.toLocaleString("it-IT")}</strong> ${total === 1 ? "libro trovato" : "libri trovati"}`;
+      : `<strong>${total.toLocaleString("it-IT")}</strong> ${
+          total === 1 ? "libro trovato" : "libri trovati"
+        }`;
 
   els.loadMoreWrap.hidden = state.displayCount >= total;
-
-  renderShowcase(noFiltersActive);
+  renderShowcase(noFiltersActive ? state.showcase : []);
 }
 
 function renderCard({ book, match }) {
@@ -369,16 +328,15 @@ function renderCard({ book, match }) {
 
 function buildHighlightMap(match) {
   const map = { titolo: null, autore: null };
-
   if (!match) return map;
   if (match.field === "titolo") map.titolo = [[match.idx, match.idx + match.queryLength - 1]];
   if (match.field === "autore") map.autore = [[match.idx, match.idx + match.queryLength - 1]];
-
   return map;
 }
 
 function highlight(text, indices) {
-  if (!indices || indices.length === 0) return escapeHtml(text);
+  const safe = escapeHtml(text);
+  if (!indices || indices.length === 0) return safe;
 
   let result = "";
   let last = 0;
@@ -389,7 +347,7 @@ function highlight(text, indices) {
     .forEach(([start, end]) => {
       if (start < last) return;
       result += escapeHtml(text.slice(last, start));
-      result += "<mark>" + escapeHtml(text.slice(start, end + 1)) + "</mark>";
+      result += `<mark>${escapeHtml(text.slice(start, end + 1))}</mark>`;
       last = end + 1;
     });
 
@@ -402,15 +360,13 @@ function escapeHtml(str) {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
-
-/* ---------- Statistiche header ---------- */
 
 function updateStats(books) {
   const authors = new Set(books.map((b) => b.autore).filter(Boolean));
   const genres = new Set(books.map((b) => b.genere).filter(Boolean));
-
   animateCount(els.statBooks, books.length);
   animateCount(els.statAuthors, authors.size);
   animateCount(els.statGenres, genres.size);
@@ -420,11 +376,8 @@ function animateCount(el, target) {
   el.textContent = target.toLocaleString("it-IT");
 }
 
-/* ---------- Utility ---------- */
-
 function debounce(fn, delay) {
   let t;
-
   return (...args) => {
     clearTimeout(t);
     t = setTimeout(() => fn(...args), delay);
