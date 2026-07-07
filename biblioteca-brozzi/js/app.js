@@ -1,6 +1,7 @@
 const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTaPJfoXysoBeqtu4T4frjSF1MpZYff2NAgaCmsyTUwItatKDGfgdBxjkDYx17Xyqq1cTpnnkHpXqB/pub?gid=689097874&single=true&output=csv";
 const PAGE_SIZE = 30;
 const SHOWCASE_CATEGORIES = ["Narrativa", "Storia", "Scienza"];
+const FIELD_RANK = { titolo: 0, autore: 1, genere: 2, editore: 3 };
 
 const state = {
   books: [],
@@ -167,8 +168,6 @@ function searchBooks(query) {
   return results;
 }
 
-const FIELD_RANK = { titolo: 0, autore: 1, genere: 2, editore: 3 };
-
 function onSearchInput() {
   els.clearSearch.hidden = els.searchInput.value.trim() === "";
   applyFilters();
@@ -261,9 +260,7 @@ function renderShowcase(show) {
         <div class="showcase__group">
           <div class="showcase__head">
             <h2 class="showcase__title">${escapeHtml(group.categoria)}</h2>
-            <button class="showcase__link" data-categoria="${escapeHtml(
-              group.categoria
-            )}">Vedi tutti →</button>
+            <button class="showcase__link" data-categoria="${escapeHtml(group.categoria)}">Vedi tutti →</button>
           </div>
           <div class="grid grid--showcase">
             ${group.sample.map((book) => renderCard({ book, match: null })).join("")}
@@ -335,8 +332,7 @@ function buildHighlightMap(match) {
 }
 
 function highlight(text, indices) {
-  const safe = escapeHtml(text);
-  if (!indices || indices.length === 0) return safe;
+  if (!indices || indices.length === 0) return escapeHtml(text);
 
   let result = "";
   let last = 0;
