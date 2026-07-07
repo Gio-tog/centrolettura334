@@ -1,385 +1,451 @@
-const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTaPJfoXysoBeqtu4T4frjSF1MpZYff2NAgaCmsyTUwItatKDGfgdBxjkDYx17Xyqq1cTpnnkHpXqB/pub?gid=689097874&single=true&output=csv";
-const PAGE_SIZE = 30;
-const SHOWCASE_CATEGORIES = ["Narrativa", "Storia", "Scienza"];
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Centro Lettura - Catalogo Libri</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Design personalizzato ed elegante per il Catalogo */
+        :root {
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #475569;
+            --primary: #1e40af;
+            --primary-hover: #1e3a8a;
+            --accent: #f59e0b;
+            --border: #e2e8f0;
+            --radius: 12px;
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+            --shadow-md: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+        }
 
-const state = {
-  books: [],
-  filtered: [],
-  displayCount: PAGE_SIZE,
-  showcase: [],
-};
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
-const els = {
-  searchInput: document.getElementById("searchInput"),
-  clearSearch: document.getElementById("clearSearch"),
-  filterCategoria: document.getElementById("filterCategoria"),
-  filterGenere: document.getElementById("filterGenere"),
-  sortBy: document.getElementById("sortBy"),
-  grid: document.getElementById("grid"),
-  resultsCount: document.getElementById("resultsCount"),
-  emptyState: document.getElementById("emptyState"),
-  loadMoreWrap: document.getElementById("loadMoreWrap"),
-  loadMore: document.getElementById("loadMore"),
-  statBooks: document.getElementById("statBooks"),
-  statAuthors: document.getElementById("statAuthors"),
-  statGenres: document.getElementById("statGenres"),
-  lastUpdated: document.getElementById("lastUpdated"),
-  showcase: document.getElementById("showcase"),
-};
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.5;
+            padding-bottom: 60px;
+        }
 
-init();
+        header {
+            background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%);
+            color: white;
+            padding: 60px 20px;
+            text-align: center;
+        }
 
-function init() {
-  Papa.parse(CSV_URL, {
-    download: true,
-    header: true,
-    skipEmptyLines: true,
-    complete: (results) => {
-      state.books = normalizeRows(results.data);
-      buildFilters(state.books);
-      updateStats(state.books);
-      state.showcase = buildShowcase(state.books);
-      applyFilters();
-      els.lastUpdated.textContent =
-        "Ultimo aggiornamento: " +
-        new Date().toLocaleDateString("it-IT", {
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        });
-    },
-    error: () => {
-      els.resultsCount.textContent =
-        "Impossibile caricare il catalogo al momento. Riprova più tardi.";
-    },
-  });
+        .header-content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
 
-  els.searchInput.addEventListener("input", debounce(onSearchInput, 180));
-  els.clearSearch.addEventListener("click", () => {
-    els.searchInput.value = "";
-    onSearchInput();
-    els.searchInput.focus();
-  });
-  els.filterCategoria.addEventListener("change", applyFilters);
-  els.filterGenere.addEventListener("change", applyFilters);
-  els.sortBy.addEventListener("change", applyFilters);
-  els.loadMore.addEventListener("click", () => {
-    state.displayCount += PAGE_SIZE;
-    render();
-  });
-}
+        header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            letter-spacing: -0.03em;
+        }
 
-function normalizeRows(rows) {
-  return rows
-    .map((r) => ({
-      dewey: (r["C. Dewey"] || "").trim(),
-      inventario: (r["Inventario"] || "").trim(),
-      categoria: normalizeCategoria((r["Macro collocazione"] || "").trim()),
-      collocazione: (r["Collocazione"] || "").trim(),
-      autore: (r["Autore (nome e cognome)"] || "").trim(),
-      titolo: (r["Titolo"] || "").trim(),
-      genere: (r["Genere"] || "").trim(),
-      editore: (r["Editore"] || "").trim(),
-      anno: parseAnno(r["Anno"]),
-    }))
-    .filter((b) => b.titolo);
-}
+        header p {
+            color: #94a3b8;
+            font-size: 1.1rem;
+        }
 
-function normalizeCategoria(categoria) {
-  const c = String(categoria || "").trim().toLowerCase();
-  if (c === "scienze") return "Scienza";
-  if (c === "dizionario") return "Dizionari";
-  return categoria;
-}
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
 
-function parseAnno(raw) {
-  if (!raw) return null;
-  const n = parseInt(String(raw).trim(), 10);
-  return Number.isFinite(n) && n > 1400 && n < 2100 ? n : null;
-}
+        /* Sezione Statistiche */
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: -30px;
+            margin-bottom: 40px;
+            position: relative;
+            z-index: 10;
+        }
 
-function buildFilters(books) {
-  fillSelect(els.filterCategoria, uniqueSorted(books.map((b) => b.categoria)));
-  fillSelect(els.filterGenere, uniqueSorted(books.map((b) => b.genere)));
-}
+        .stat-card {
+            background: var(--card-bg);
+            padding: 24px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-md);
+            text-align: center;
+            border: 1px solid var(--border);
+        }
 
-function uniqueSorted(values) {
-  return [...new Set(values.filter(Boolean))].sort((a, b) =>
-    a.localeCompare(b, "it")
-  );
-}
+        .stat-card h3 {
+            font-size: 2rem;
+            color: var(--primary);
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
 
-function fillSelect(selectEl, values) {
-  values.forEach((v) => {
-    const opt = document.createElement("option");
-    opt.value = v;
-    opt.textContent = v;
-    selectEl.appendChild(opt);
-  });
-}
+        .stat-card p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
 
-function normalize(str) {
-  return String(str)
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
-}
+        /* Vetrina Dinamica (Showcase) */
+        .showcase__group {
+            margin-bottom: 40px;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+        }
 
-function searchBooks(query) {
-  const nq = normalize(query.trim());
-  if (!nq) return [];
+        .showcase__head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--bg-color);
+            padding-bottom: 10px;
+        }
 
-  const results = [];
+        .showcase__title {
+            font-size: 1.4rem;
+            color: var(--text-main);
+            font-weight: 700;
+        }
 
-  for (const book of state.books) {
-    const idxTitolo = normalize(book.titolo).indexOf(nq);
-    const idxAutore = normalize(book.autore).indexOf(nq);
-    const idxGenere = normalize(book.genere).indexOf(nq);
-    const idxEditore = normalize(book.editore).indexOf(nq);
+        .showcase__link {
+            background: none;
+            border: none;
+            color: var(--primary);
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: color 0.2s;
+        }
 
-    let field = null;
-    let idx = -1;
+        .showcase__link:hover {
+            color: var(--primary-hover);
+            text-decoration: underline;
+        }
 
-    if (idxTitolo !== -1) {
-      field = "titolo";
-      idx = idxTitolo;
-    } else if (idxAutore !== -1) {
-      field = "autore";
-      idx = idxAutore;
-    } else if (idxGenere !== -1) {
-      field = "genere";
-      idx = idxGenere;
-    } else if (idxEditore !== -1) {
-      field = "editore";
-      idx = idxEditore;
-    }
+        /* Barra di ricerca e contenitore filtri */
+        .search-filter-section {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            margin-bottom: 30px;
+        }
 
-    if (field) results.push({ book, field, idx, queryLength: nq.length });
-  }
+        .search-wrapper {
+            position: relative;
+            margin-bottom: 20px;
+        }
 
-  results.sort(
-    (a, b) =>
-      FIELD_RANK[a.field] - FIELD_RANK[b.field] ||
-      a.idx - b.idx ||
-      a.book.titolo.localeCompare(b.book.titolo, "it")
-  );
+        .search-wrapper input {
+            width: 100%;
+            padding: 14px 45px 14px 20px;
+            font-size: 1rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            background-color: #f8fafc;
+        }
 
-  return results;
-}
+        .search-wrapper input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+            background-color: #fff;
+        }
 
-const FIELD_RANK = { titolo: 0, autore: 1, genere: 2, editore: 3 };
+        #clearSearch {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #e2e8f0;
+            border: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: bold;
+        }
 
-function onSearchInput() {
-  els.clearSearch.hidden = els.searchInput.value.trim() === "";
-  applyFilters();
-}
+        #clearSearch:hover {
+            background: #cbd5e1;
+            color: var(--text-main);
+        }
 
-function applyFilters() {
-  const query = els.searchInput.value.trim();
-  const categoria = els.filterCategoria.value;
-  const genere = els.filterGenere.value;
-  const sortMode = els.sortBy.value;
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
 
-  let items;
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
 
-  if (query.length > 0) {
-    const results = searchBooks(query);
-    items = results
-      .filter(
-        (r) =>
-          (!categoria || r.book.categoria === categoria) &&
-          (!genere || r.book.genere === genere)
-      )
-      .map((r) => ({ book: r.book, match: r }));
-  } else {
-    items = state.books
-      .filter(
-        (b) =>
-          (!categoria || b.categoria === categoria) &&
-          (!genere || b.genere === genere)
-      )
-      .map((b) => ({ book: b, match: null }));
-  }
+        .filter-group label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
 
-  if (!(query.length > 0 && sortMode === "rilevanza")) {
-    items = sortItems(items, sortMode === "rilevanza" ? "titolo-asc" : sortMode);
-  }
+        .filter-group select {
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            outline: none;
+            background-color: #fff;
+            cursor: pointer;
+        }
 
-  state.filtered = items;
-  state.displayCount = PAGE_SIZE;
-  render();
-}
+        /* Intestazione risultati */
+        .results-header {
+            margin-bottom: 20px;
+            font-size: 1rem;
+            color: var(--text-muted);
+        }
 
-function sortItems(items, mode) {
-  const copy = [...items];
-  switch (mode) {
-    case "titolo-asc":
-      copy.sort((a, b) => a.book.titolo.localeCompare(b.book.titolo, "it"));
-      break;
-    case "autore-asc":
-      copy.sort((a, b) =>
-        (a.book.autore || "").localeCompare(b.book.autore || "", "it")
-      );
-      break;
-    case "anno-desc":
-      copy.sort((a, b) => (b.book.anno || 0) - (a.book.anno || 0));
-      break;
-    case "anno-asc":
-      copy.sort((a, b) => (a.book.anno || 9999) - (b.book.anno || 9999));
-      break;
-  }
-  return copy;
-}
+        /* Griglie dei libri */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 25px;
+        }
 
-function buildShowcase(books) {
-  return SHOWCASE_CATEGORIES.map((categoria) => {
-    const inCategoria = books.filter((b) => b.categoria === categoria);
-    return { categoria, sample: sampleRandom(inCategoria, 3) };
-  }).filter((group) => group.sample.length > 0);
-}
+        .grid--showcase {
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        }
 
-function sampleRandom(arr, n) {
-  const copy = [...arr];
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy.slice(0, n);
-}
+        /* Card del singolo libro */
+        .book-card {
+            background: var(--card-bg);
+            padding: 24px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
 
-function renderShowcase(show) {
-  if (!show || show.length === 0) {
-    els.showcase.hidden = true;
-    els.showcase.innerHTML = "";
-    return;
-  }
+        .book-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-md);
+            border-color: #cbd5e1;
+        }
 
-  els.showcase.hidden = false;
-  els.showcase.innerHTML = show
-    .map(
-      (group) => `
-        <div class="showcase__group">
-          <div class="showcase__head">
-            <h2 class="showcase__title">${escapeHtml(group.categoria)}</h2>
-            <button class="showcase__link" data-categoria="${escapeHtml(
-              group.categoria
-            )}">Vedi tutti →</button>
-          </div>
-          <div class="grid grid--showcase">
-            ${group.sample.map((book) => renderCard({ book, match: null })).join("")}
-          </div>
+        .book-card__title {
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: var(--text-main);
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+
+        .book-card__author {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            margin-bottom: 15px;
+        }
+
+        .book-card__divider {
+            border: 0;
+            border-top: 1px solid #f1f5f9;
+            margin-bottom: 15px;
+        }
+
+        .book-card__meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: auto;
+        }
+
+        .chip {
+            background-color: #eff6ff;
+            color: #1e40af;
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .book-card__year {
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+
+        /* Evidenziatore del testo cercato */
+        mark {
+            background-color: #fef08a;
+            color: #854d0e;
+            padding: 0 2px;
+            border-radius: 2px;
+        }
+
+        /* Stato Vuoto */
+        #emptyState {
+            text-align: center;
+            padding: 60px 20px;
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            border: 1px dashed var(--border);
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        /* Pulsante Carica Altri */
+        #loadMoreWrap {
+            text-align: center;
+            margin-top: 40px;
+        }
+
+        #loadMore {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-family: inherit;
+        }
+
+        #loadMore:hover {
+            background-color: var(--primary-hover);
+        }
+
+        #lastUpdated {
+            text-align: center;
+            font-size: 0.85rem;
+            color: #64748b;
+            margin-top: 50px;
+        }
+
+        @media (max-width: 640px) {
+            header { padding: 40px 20px; }
+            header h1 { font-size: 2rem; }
+            .search-filter-section { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-content">
+            <h1>Centro Lettura</h1>
+            <p>Esplora e ricerca all'interno del nostro catalogo di libri</p>
         </div>
-      `
-    )
-    .join("");
+    </header>
 
-  els.showcase.querySelectorAll(".showcase__link").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      els.filterCategoria.value = btn.dataset.categoria;
-      applyFilters();
-      document.getElementById("catalogo").scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    });
-  });
-}
+    <main class="container">
+        <section class="stats-container">
+            <div class="stat-card">
+                <h3 id="statBooks">0</h3>
+                <p>Libri Totali</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="statAuthors">0</h3>
+                <p>Autori Unici</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="statGenres">0</h3>
+                <p>Generi</p>
+            </div>
+        </section>
 
-function render() {
-  const total = state.filtered.length;
-  const visible = state.filtered.slice(0, state.displayCount);
-  const noFiltersActive =
-    els.searchInput.value.trim() === "" &&
-    els.filterCategoria.value === "" &&
-    els.filterGenere.value === "";
+        <section id="showcase"></section>
 
-  els.grid.innerHTML = visible.map(renderCard).join("");
-  els.emptyState.hidden = total !== 0;
-  els.grid.hidden = total === 0;
+        <section id="catalogo" class="search-filter-section">
+            <div class="search-wrapper">
+                <input type="text" id="searchInput" placeholder="Cerca per titolo, autore, genere, editore...">
+                <button id="clearSearch" hidden aria-label="Annulla ricerca">✕</button>
+            </div>
 
-  els.resultsCount.innerHTML =
-    total === 0
-      ? ""
-      : `<strong>${total.toLocaleString("it-IT")}</strong> ${
-          total === 1 ? "libro trovato" : "libri trovati"
-        }`;
+            <div class="filters-grid">
+                <div class="filter-group">
+                    <label for="filterCategoria">Macro Categoria</label>
+                    <select id="filterCategoria">
+                        <option value="">Tutte</option>
+                    </select>
+                </div>
 
-  els.loadMoreWrap.hidden = state.displayCount >= total;
-  renderShowcase(noFiltersActive ? state.showcase : []);
-}
+                <div class="filter-group">
+                    <label for="filterGenere">Genere specifico</label>
+                    <select id="filterGenere">
+                        <option value="">Tutti</option>
+                    </select>
+                </div>
 
-function renderCard({ book, match }) {
-  const highlights = buildHighlightMap(match);
-  const titolo = highlight(book.titolo, highlights.titolo);
-  const autore = highlight(book.autore || "Autore non indicato", highlights.autore);
+                <div class="filter-group">
+                    <label for="sortBy">Ordina i risultati</label>
+                    <select id="sortBy">
+                        <option value="rilevanza">Rilevanza</option>
+                        <option value="titolo-asc">Titolo (A-Z)</option>
+                        <option value="autore-asc">Autore (A-Z)</option>
+                        <option value="anno-desc">Anno (Più recente)</option>
+                        <option value="anno-asc">Anno (Meno recente)</option>
+                    </select>
+                </div>
+            </div>
+        </section>
 
-  return `
-    <article class="book-card">
-      <h3 class="book-card__title">${titolo}</h3>
-      <p class="book-card__author">${autore}</p>
-      <hr class="book-card__divider">
-      <div class="book-card__meta">
-        ${book.genere ? `<span class="chip">${escapeHtml(book.genere)}</span>` : ""}
-        <span class="book-card__year">${book.anno || "anno non indicato"}</span>
-      </div>
-    </article>
-  `;
-}
+        <div class="results-header">
+            <p id="resultsCount"></p>
+        </div>
 
-function buildHighlightMap(match) {
-  const map = { titolo: null, autore: null };
-  if (!match) return map;
-  if (match.field === "titolo") map.titolo = [[match.idx, match.idx + match.queryLength - 1]];
-  if (match.field === "autore") map.autore = [[match.idx, match.idx + match.queryLength - 1]];
-  return map;
-}
+        <div id="grid" class="grid"></div>
 
-function highlight(text, indices) {
-  const safe = escapeHtml(text);
-  if (!indices || indices.length === 0) return safe;
+        <div id="emptyState" hidden>
+            <p>Nessun libro corrisponde ai filtri o al termine di ricerca inserito.</p>
+        </div>
 
-  let result = "";
-  let last = 0;
+        <div id="loadMoreWrap" hidden>
+            <button id="loadMore">Carica altri libri</button>
+        </div>
 
-  indices
-    .slice()
-    .sort((a, b) => a[0] - b[0])
-    .forEach(([start, end]) => {
-      if (start < last) return;
-      result += escapeHtml(text.slice(last, start));
-      result += `<mark>${escapeHtml(text.slice(start, end + 1))}</mark>`;
-      last = end + 1;
-    });
+        <p id="lastUpdated"></p>
+    </main>
 
-  result += escapeHtml(text.slice(last));
-  return result;
-}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    
+    <script src="app.js"></script>
 
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-function updateStats(books) {
-  const authors = new Set(books.map((b) => b.autore).filter(Boolean));
-  const genres = new Set(books.map((b) => b.genere).filter(Boolean));
-  animateCount(els.statBooks, books.length);
-  animateCount(els.statAuthors, authors.size);
-  animateCount(els.statGenres, genres.size);
-}
-
-function animateCount(el, target) {
-  el.textContent = target.toLocaleString("it-IT");
-}
-
-function debounce(fn, delay) {
-  let t;
-  return (...args) => {
-    clearTimeout(t);
-    t = setTimeout(() => fn(...args), delay);
-  };
-}
+</body>
+</html>
