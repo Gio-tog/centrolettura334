@@ -10,27 +10,44 @@ const state = {
   showcase: [],
 };
 
-const els = {
-  searchInput: document.getElementById("searchInput"),
-  clearSearch: document.getElementById("clearSearch"),
-  filterCategoria: document.getElementById("filterCategoria"),
-  filterGenere: document.getElementById("filterGenere"),
-  sortBy: document.getElementById("sortBy"),
-  grid: document.getElementById("grid"),
-  resultsCount: document.getElementById("resultsCount"),
-  emptyState: document.getElementById("emptyState"),
-  loadMoreWrap: document.getElementById("loadMoreWrap"),
-  loadMore: document.getElementById("loadMore"),
-  statBooks: document.getElementById("statBooks"),
-  statAuthors: document.getElementById("statAuthors"),
-  statGenres: document.getElementById("statGenres"),
-  lastUpdated: document.getElementById("lastUpdated"),
-  showcase: document.getElementById("showcase"),
-};
+// Gli elementi verranno mappati solo al caricamento del DOM
+let els = {};
 
-init();
+document.addEventListener("DOMContentLoaded", () => {
+  els = {
+    searchInput: document.getElementById("searchInput"),
+    clearSearch: document.getElementById("clearSearch"),
+    filterCategoria: document.getElementById("filterCategoria"),
+    filterGenere: document.getElementById("filterGenere"),
+    sortBy: document.getElementById("sortBy"),
+    grid: document.getElementById("grid"),
+    resultsCount: document.getElementById("resultsCount"),
+    emptyState: document.getElementById("emptyState"),
+    loadMoreWrap: document.getElementById("loadMoreWrap"),
+    loadMore: document.getElementById("loadMore"),
+    statBooks: document.getElementById("statBooks"),
+    statAuthors: document.getElementById("statAuthors"),
+    statGenres: document.getElementById("statGenres"),
+    lastUpdated: document.getElementById("lastUpdated"),
+    showcase: document.getElementById("showcase"),
+  };
+
+  // Avvia l'applicazione in sicurezza
+  init();
+});
 
 function init() {
+  // Controllo di sicurezza: interrompe l'esecuzione se mancano elementi vitali nell'HTML
+  if (!els.searchInput) {
+    console.error("Errore: Elementi strutturali non trovati nell'HTML. Verifica gli ID.");
+    return;
+  }
+
+  if (typeof Papa === "undefined") {
+    console.error("Errore: La libreria PapaParse non è stata caricata. Controlla i tag in index.html.");
+    return;
+  }
+
   Papa.parse(CSV_URL, {
     download: true,
     header: true,
@@ -41,17 +58,21 @@ function init() {
       updateStats(state.books);
       state.showcase = buildShowcase(state.books);
       applyFilters();
-      els.lastUpdated.textContent =
-        "Ultimo aggiornamento: " +
-        new Date().toLocaleDateString("it-IT", {
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        });
+      if (els.lastUpdated) {
+        els.lastUpdated.textContent =
+          "Ultimo aggiornamento: " +
+          new Date().toLocaleDateString("it-IT", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          });
+      }
     },
     error: () => {
-      els.resultsCount.textContent =
-        "Impossibile caricare il catalogo al momento. Riprova più tardi.";
+      if (els.resultsCount) {
+        els.resultsCount.textContent =
+          "Impossibile caricare il catalogo al momento. Riprova più tardi.";
+      }
     },
   });
 
@@ -61,13 +82,16 @@ function init() {
     onSearchInput();
     els.searchInput.focus();
   });
-  els.filterCategoria.addEventListener("change", applyFilters);
-  els.filterGenere.addEventListener("change", applyFilters);
-  els.sortBy.addEventListener("change", applyFilters);
-  els.loadMore.addEventListener("click", () => {
-    state.displayCount += PAGE_SIZE;
-    render();
-  });
+  
+  if (els.filterCategoria) els.filterCategoria.addEventListener("change", applyFilters);
+  if (els.filterGenere) els.filterGenere.addEventListener("change", applyFilters);
+  if (els.sortBy) els.sortBy.addEventListener("change", applyFilters);
+  if (els.loadMore) {
+    els.loadMore.addEventListener("click", () => {
+      state.displayCount += PAGE_SIZE;
+      render();
+    });
+  }
 }
 
 function normalizeRows(rows) {
@@ -100,8 +124,8 @@ function parseAnno(raw) {
 }
 
 function buildFilters(books) {
-  fillSelect(els.filterCategoria, uniqueSorted(books.map((b) => b.categoria)));
-  fillSelect(els.filterGenere, uniqueSorted(books.map((b) => b.genere)));
+  if (els.filterCategoria) fillSelect(els.filterCategoria, uniqueSorted(books.map((b) => b.categoria)));
+  if (els.filterGenere) fillSelect(els.filterGenere, uniqueSorted(books.map((b) => b.genere)));
 }
 
 function uniqueSorted(values) {
@@ -111,6 +135,10 @@ function uniqueSorted(values) {
 }
 
 function fillSelect(selectEl, values) {
+  // Pulisce le vecchie opzioni mantenendo solo la prima (es. "Tutte")
+  while (selectEl.options.length > 1) {
+    selectEl.remove(1);
+  }
   values.forEach((v) => {
     const opt = document.createElement("option");
     opt.value = v;
@@ -169,15 +197,15 @@ function searchBooks(query) {
 }
 
 function onSearchInput() {
-  els.clearSearch.hidden = els.searchInput.value.trim() === "";
+  if (els.clearSearch) els.clearSearch.hidden = els.searchInput.value.trim() === "";
   applyFilters();
 }
 
 function applyFilters() {
-  const query = els.searchInput.value.trim();
-  const categoria = els.filterCategoria.value;
-  const genere = els.filterGenere.value;
-  const sortMode = els.sortBy.value;
+  const query = els.searchInput ? els.searchInput.value.trim() : "";
+  const categoria = els.filterCategoria ? els.filterCategoria.value : "";
+  const genere = els.filterGenere ? els.filterGenere.value : "";
+  const sortMode = els.sortBy ? els.sortBy.value : "titolo-asc";
 
   let items;
 
@@ -247,6 +275,8 @@ function sampleRandom(arr, n) {
 }
 
 function renderShowcase(show) {
+  if (!els.showcase) return;
+  
   if (!show || show.length === 0) {
     els.showcase.hidden = true;
     els.showcase.innerHTML = "";
@@ -272,12 +302,15 @@ function renderShowcase(show) {
 
   els.showcase.querySelectorAll(".showcase__link").forEach((btn) => {
     btn.addEventListener("click", () => {
-      els.filterCategoria.value = btn.dataset.categoria;
+      if (els.filterCategoria) els.filterCategoria.value = btn.dataset.categoria;
       applyFilters();
-      document.getElementById("catalogo").scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
+      const catEl = document.getElementById("catalogo");
+      if (catEl) {
+        catEl.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }
     });
   });
 }
@@ -286,22 +319,24 @@ function render() {
   const total = state.filtered.length;
   const visible = state.filtered.slice(0, state.displayCount);
   const noFiltersActive =
-    els.searchInput.value.trim() === "" &&
-    els.filterCategoria.value === "" &&
-    els.filterGenere.value === "";
+    (els.searchInput ? els.searchInput.value.trim() : "") === "" &&
+    (els.filterCategoria ? els.filterCategoria.value : "") === "" &&
+    (els.filterGenere ? els.filterGenere.value : "") === "";
 
-  els.grid.innerHTML = visible.map(renderCard).join("");
-  els.emptyState.hidden = total !== 0;
-  els.grid.hidden = total === 0;
+  if (els.grid) els.grid.innerHTML = visible.map(renderCard).join("");
+  if (els.emptyState) els.emptyState.hidden = total !== 0;
+  if (els.grid) els.grid.hidden = total === 0;
 
-  els.resultsCount.innerHTML =
-    total === 0
-      ? ""
-      : `<strong>${total.toLocaleString("it-IT")}</strong> ${
-          total === 1 ? "libro trovato" : "libri trovati"
-        }`;
+  if (els.resultsCount) {
+    els.resultsCount.innerHTML =
+      total === 0
+        ? ""
+        : `<strong>${total.toLocaleString("it-IT")}</strong> ${
+            total === 1 ? "libro trovato" : "libri trouvati"
+          }`;
+  }
 
-  els.loadMoreWrap.hidden = state.displayCount >= total;
+  if (els.loadMoreWrap) els.loadMoreWrap.hidden = state.displayCount >= total;
   renderShowcase(noFiltersActive ? state.showcase : []);
 }
 
@@ -363,9 +398,9 @@ function escapeHtml(str) {
 function updateStats(books) {
   const authors = new Set(books.map((b) => b.autore).filter(Boolean));
   const genres = new Set(books.map((b) => b.genere).filter(Boolean));
-  animateCount(els.statBooks, books.length);
-  animateCount(els.statAuthors, authors.size);
-  animateCount(els.statGenres, genres.size);
+  if (els.statBooks) animateCount(els.statBooks, books.length);
+  if (els.statAuthors) animateCount(els.statAuthors, authors.size);
+  if (els.statGenres) animateCount(els.statGenres, genres.size);
 }
 
 function animateCount(el, target) {
